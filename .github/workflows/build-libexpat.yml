@@ -99,9 +99,11 @@ jobs:
     - name: Merge runtimes
       run: |
         mkdir -p output/runtimes
+        # copiar só o conteúdo correto, ignorando 'collected' e subpastas extras
         find collected -type f -name "libexpat.*" | while read file; do
-          relpath="${file#*/runtimes/}"
-          target="output/runtimes/${relpath}"
+          # remove "collected/*/runtimes/" do caminho para manter só a estrutura runtimes/...
+          relpath=$(echo "$file" | sed -E 's#collected/[^/]+/runtimes/##')
+          target="output/runtimes/$relpath"
           mkdir -p "$(dirname "$target")"
           cp "$file" "$target"
         done
@@ -114,6 +116,6 @@ jobs:
     - name: Upload final zip
       uses: actions/upload-artifact@v4
       with:
-        name: natives
+        name: native-libs
         path: native-libs.zip
         retention-days: 7
