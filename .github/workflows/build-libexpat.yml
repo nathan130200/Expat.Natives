@@ -56,20 +56,29 @@ jobs:
       run: |
         RID=""
         EXT=""
+        FILEPATH=""
+        PDBFILE=""
 
         if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
           RID="win-${{ matrix.arch }}"
           EXT="dll"
+          FILEPATH="build/Release/libexpat.${EXT}"
+          PDBFILE="build/Release/libexpat.pdb"
         elif [[ "${{ matrix.os }}" == "ubuntu-latest" ]]; then
           RID="linux-${{ matrix.arch }}"
           EXT="so"
+          FILEPATH="build/libexpat.${EXT}"
         elif [[ "${{ matrix.os }}" == "macos-latest" ]]; then
           RID="osx-${{ matrix.arch }}"
           EXT="dylib"
+          FILEPATH="build/libexpat.${EXT}"
         fi
 
         mkdir -p runtimes/$RID/native
-        cp build/libexpat.${EXT} runtimes/$RID/native/
+        cp "$FILEPATH" runtimes/$RID/native/
+        if [[ -n "$PDBFILE" && -f "$PDBFILE" ]]; then
+          cp "$PDBFILE" runtimes/$RID/native/
+        fi
 
     - name: Upload partial artifact
       uses: actions/upload-artifact@v4
@@ -87,7 +96,7 @@ jobs:
       with:
         path: collected
 
-    - name: Merge folders
+    - name: Merge runtimes
       run: |
         mkdir output
         find collected -type f -name "libexpat.*" | while read file; do
@@ -97,7 +106,7 @@ jobs:
           cp "$file" "output/$ridpath"
         done
 
-    - name: Compress result
+    - name: Compress output
       run: |
         cd output
         zip -r ../native-libs.zip runtimes
@@ -107,3 +116,4 @@ jobs:
       with:
         name: native-libs
         path: native-libs.zip
+        retention-days: 7
