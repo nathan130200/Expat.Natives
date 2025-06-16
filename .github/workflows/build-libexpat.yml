@@ -10,13 +10,13 @@ on:
   workflow_dispatch: # Allows manual triggering
 
 env:
-  EXPAT_VERSION: 2.6.2 # Specify the libexpat version you want to build
+  EXPAT_VERSION: 2.7.1 # Specify the libexpat version you want to build
 
 jobs:
   build_per_platform:
     runs-on: ${{ matrix.os }}
     strategy:
-      fail-fast: false
+      fail-fast: true
       matrix:
         os: [windows-latest, ubuntu-latest, macos-latest]
         arch: [x64, x86] # Target architectures
@@ -50,6 +50,9 @@ jobs:
         fi
         echo "CURRENT_PLATFORM_ID=${{ matrix.platform_id }}" >> "$GITHUB_ENV"
         echo "RUNTIME_DIR=runtimes/${{ matrix.platform_id }}-${{ env.CURRENT_ARCH_ID }}/native" >> "$GITHUB_ENV"
+        # Convert EXPAT_VERSION (e.g., 2.6.2) to 2_6_2 for the URL path
+        EXPAT_VERSION_UNDERSCORE=$(echo "${{ env.EXPAT_VERSION }}" | tr '.' '_')
+        echo "EXPAT_VERSION_UNDERSCORE=$EXPAT_VERSION_UNDERSCORE" >> "$GITHUB_ENV"
       shell: bash
 
     - name: Install Build Tools (Linux)
@@ -84,7 +87,8 @@ jobs:
 
     - name: Download and Extract libexpat Source
       run: |
-        SOURCE_URL="https://github.com/libexpat/libexpat/releases/download/R${{ env.EXPAT_VERSION }}/expat-${{ env.EXPAT_VERSION }}"
+        SOURCE_URL="https://github.com/libexpat/libexpat/releases/download/R_${{ env.EXPAT_VERSION_UNDERSCORE }}/expat-${{ env.EXPAT_VERSION }}"
+        echo "Attempting to download from: $SOURCE_URL"
         if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
           curl -LO "${SOURCE_URL}.zip"
           unzip "expat-${{ env.EXPAT_VERSION }}.zip"
