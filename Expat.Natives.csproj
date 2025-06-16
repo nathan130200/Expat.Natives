@@ -1,7 +1,18 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <TargetFramework>netstandard2.0</TargetFramework>
-  </PropertyGroup>
+	<PropertyGroup>
+		<TargetFramework>netstandard2.0</TargetFramework>
+		<RepositoryUrl>https://github.com/libexpat/libexpat</RepositoryUrl>
+		<RepositoryType>git</RepositoryType>
+		<Authors>Clark Cooper, Thai Open Source Software Center Ltd, Expat maintainers</Authors>
+		<PackageTags>xml, xml parser, xml tokenizer, xml stream, xmpp</PackageTags>
+		<PackageLicenseFile>COPYING.txt</PackageLicenseFile>
+		<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<None Include="./.natives/**/*" Pack="true" PackagePath="runtimes" />
+		<None Include="COPYING.txt" Pack="true" PackagePath="" />
+	</ItemGroup>
 
 </Project>
