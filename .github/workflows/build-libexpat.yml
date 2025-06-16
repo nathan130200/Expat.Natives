@@ -37,7 +37,7 @@ jobs:
         curl -LO https://github.com/libexpat/libexpat/releases/download/R_${EXPAT_VERSION//./_}/expat-${EXPAT_VERSION}.tar.gz
         tar -xzf expat-${EXPAT_VERSION}.tar.gz
 
-    - name: Configure build
+    - name: Configure build for PInvoke
       shell: bash
       run: |
         mkdir build
@@ -50,8 +50,11 @@ jobs:
           -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
           -DEXPAT_BUILD_DOCS=OFF \
           -DEXPAT_SHARED_LIBS=ON \
+          -DXML_UNICODE=OFF \
           -DCMAKE_BUILD_TYPE=Release \
-          -DXML_UNICODE=OFF
+          -DCMAKE_SHARED_LIBRARY_PREFIX=lib \
+          -DCMAKE_SHARED_LIBRARY_SUFFIX=".dll"
+
 
     - name: Build
       run: |
