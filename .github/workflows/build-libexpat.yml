@@ -24,8 +24,10 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v4
 
-    - name: Check dotnet version
-      run: dotnet --version
+    - name: Install NuGet CLI
+      run: |
+        curl -Lo nuget.exe https://dist.nuget.org/win-x86-commandline/latest/nuget.exe
+      shell: bash
 
     - name: Install dependencies (Linux/macOS)
       if: runner.os != 'Windows'
@@ -133,11 +135,10 @@ jobs:
         </package>
         EOF
       shell: bash
-
-    - name: Pack NuGet
+    
+    - name: Pack NuGet package
       run: |
-        cd nuget
-        dotnet pack ${PACKAGE_ID}.nuspec -o .
+        mono nuget.exe pack nuget/${PACKAGE_ID}.nuspec -OutputDirectory nuget/
       shell: bash
 
     - name: Upload NuGet package
