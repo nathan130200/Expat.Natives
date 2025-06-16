@@ -33,12 +33,16 @@ jobs:
         cmake ../expat-${EXPAT_VERSION} \
           -DBUILD_shared=ON \
           -DBUILD_tools=OFF \
+          -DEXPAT_BUILD_TOOLS=OFF \
+          -DEXPAT_BUILD_TESTS=OFF \
+          -DEXPAT_BUILD_EXAMPLES=OFF \
           -DBUILD_examples=OFF \
           -DBUILD_tests=OFF \
           -DEXPAT_BUILD_DOCS=OFF \
           -DEXPAT_SHARED_LIBS=ON \
           -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
           -DXML_UNICODE=OFF \
+          -DEXPAT_CHAR_TYPE=char \
           -DCMAKE_BUILD_TYPE=Release
 
     - name: Build expat
@@ -68,7 +72,7 @@ jobs:
         cp build/libexpat.${EXT} runtimes/$RID/native/
 
     - name: Upload partial artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: runtimes-${{ matrix.os }}-${{ matrix.arch }}
         path: runtimes/
@@ -79,7 +83,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Download all artifacts
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         path: collected
 
@@ -99,7 +103,7 @@ jobs:
         zip -r ../native-libs.zip runtimes
 
     - name: Upload final zip
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: native-libs
         path: native-libs.zip
