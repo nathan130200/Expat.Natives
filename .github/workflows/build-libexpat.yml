@@ -1,9 +1,8 @@
 name: Build libexpat native binaries
 
 on:
-  workflow_dispatch:
-  push:
-    branches: [ main ]
+  release:
+    types: [created]
 
 env:
   EXPAT_VERSION: 2.7.1
