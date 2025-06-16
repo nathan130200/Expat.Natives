@@ -44,13 +44,13 @@ jobs:
       id: set_env
       run: |
         # Map matrix arch to .NET runtime architecture ID
-        if ("${{ matrix.arch }}" -eq "x64") {
-          echo "CURRENT_ARCH_ID=${{ matrix.arch_id_x64 }}" >> $GITHUB_ENV
-        } else {
-          echo "CURRENT_ARCH_ID=${{ matrix.arch_id_x86 }}" >> $GITHUB_ENV
-        }
-        echo "CURRENT_PLATFORM_ID=${{ matrix.platform_id }}" >> $GITHUB_ENV
-        echo "RUNTIME_DIR=runtimes/${{ matrix.platform_id }}-${{ env.CURRENT_ARCH_ID }}/native" >> $GITHUB_ENV
+        if [[ "${{ matrix.arch }}" == "x64" ]]; then
+          echo "CURRENT_ARCH_ID=${{ matrix.arch_id_x64 }}" >> "$GITHUB_ENV"
+        else
+          echo "CURRENT_ARCH_ID=${{ matrix.arch_id_x86 }}" >> "$GITHUB_ENV"
+        fi
+        echo "CURRENT_PLATFORM_ID=${{ matrix.platform_id }}" >> "$GITHUB_ENV"
+        echo "RUNTIME_DIR=runtimes/${{ matrix.platform_id }}-${{ env.CURRENT_ARCH_ID }}/native" >> "$GITHUB_ENV"
       shell: bash
 
     - name: Download and Setup CMake (Windows)
@@ -75,7 +75,7 @@ jobs:
         CMAKE_INSTALL_DIR="$HOME/tools/cmake"
         mkdir -p "$CMAKE_INSTALL_DIR"
         curl -L "$CMAKE_URL" | tar -xz -C "$CMAKE_INSTALL_DIR" --strip-components=1
-        echo "$CMAKE_INSTALL_DIR/bin" >> $GITHUB_PATH
+        echo "$CMAKE_INSTALL_DIR/bin" >> "$GITHUB_PATH"
       shell: bash
 
     - name: Download and Setup CMake (macOS)
@@ -85,7 +85,7 @@ jobs:
         CMAKE_INSTALL_DIR="$HOME/tools/cmake"
         mkdir -p "$CMAKE_INSTALL_DIR"
         curl -L "$CMAKE_URL" | tar -xz -C "$CMAKE_INSTALL_DIR" --strip-components=1
-        echo "$CMAKE_INSTALL_DIR/bin" >> $GITHUB_PATH
+        echo "$CMAKE_INSTALL_DIR/bin" >> "$GITHUB_PATH"
       shell: bash
 
     - name: Install Build Tools (Linux - for x86)
@@ -97,13 +97,13 @@ jobs:
     - name: Download and Extract libexpat Source
       run: |
         SOURCE_URL="https://github.com/libexpat/libexpat/releases/download/R${{ env.EXPAT_VERSION }}/expat-${{ env.EXPAT_VERSION }}"
-        if ("${{ matrix.os }}" -eq "windows-latest") {
+        if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
           curl -LO "${SOURCE_URL}.zip"
           unzip "expat-${{ env.EXPAT_VERSION }}.zip"
-        } else {
+        else
           curl -LO "${SOURCE_URL}.tar.gz"
           tar -xzf "expat-${{ env.EXPAT_VERSION }}.tar.gz"
-        }
+        fi
       shell: bash
 
     - name: Configure libexpat (Windows)
