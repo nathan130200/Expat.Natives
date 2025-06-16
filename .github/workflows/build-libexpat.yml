@@ -11,7 +11,7 @@ on:
 
 env:
   EXPAT_VERSION: 2.6.2 # Specify the libexpat version you want to build
-  CMAKE_VERSION: 3.29.3 # Specify the CMake version to download
+  CMAKE_VERSION: 3.31 # Specify the CMake version to download
 
 jobs:
   build_per_platform:
@@ -56,7 +56,7 @@ jobs:
     - name: Download and Setup CMake (Windows)
       if: matrix.os == 'windows-latest'
       run: |
-        $CMAKE_URL="https://cmake.org/files/v${{ env.CMAKE_VERSION }}/cmake-${{ env.CMAKE_VERSION }}-windows-x86_64.zip"
+        $CMAKE_URL="https://cmake.org/files/v${{ env.CMAKE_VERSION%.* }}/cmake-${{ env.CMAKE_VERSION }}-windows-x86_64.zip"
         $CMAKE_INSTALL_DIR="C:\tools\cmake"
         mkdir -p "$CMAKE_INSTALL_DIR"
         curl -L "$CMAKE_URL" -o cmake.zip
@@ -71,7 +71,7 @@ jobs:
     - name: Download and Setup CMake (Linux)
       if: matrix.os == 'ubuntu-latest'
       run: |
-        CMAKE_URL="https://cmake.org/files/v${{ env.CMAKE_VERSION }}/cmake-${{ env.CMAKE_VERSION }}-linux-x86_64.tar.gz"
+        CMAKE_URL="https://cmake.org/files/v${{ env.CMAKE_VERSION%.* }}/cmake-${{ env.CMAKE_VERSION }}-linux-x86_64.tar.gz"
         CMAKE_INSTALL_DIR="$HOME/tools/cmake"
         mkdir -p "$CMAKE_INSTALL_DIR"
         curl -L "$CMAKE_URL" | tar -xz -C "$CMAKE_INSTALL_DIR" --strip-components=1
@@ -81,7 +81,7 @@ jobs:
     - name: Download and Setup CMake (macOS)
       if: matrix.os == 'macos-latest'
       run: |
-        CMAKE_URL="https://cmake.org/files/v${{ env.CMAKE_VERSION }}/cmake-${{ env.CMAKE_VERSION }}-macos-universal.tar.gz"
+        CMAKE_URL="https://cmake.org/files/v${{ env.CMAKE_VERSION%.* }}/cmake-${{ env.CMAKE_VERSION }}-macos-universal.tar.gz"
         CMAKE_INSTALL_DIR="$HOME/tools/cmake"
         mkdir -p "$CMAKE_INSTALL_DIR"
         curl -L "$CMAKE_URL" | tar -xz -C "$CMAKE_INSTALL_DIR" --strip-components=1
@@ -175,7 +175,7 @@ jobs:
           # Use find to locate, then copy, handling potential versioned libs
           find "expat-${{ env.EXPAT_VERSION }}/build" -name "libexpat.so*" -exec cp {} "${{ env.RUNTIME_DIR }}/" \; || true
           echo "Copied libexpat.so* to ${{ env.RUNTIME_DIR }}"
-        } elseif ("${{ matrix.os }}" -eq "macos-latest") {
+        } elseif ("${{ matrix.os }}" == 'macos-latest') { # Changed to == for string comparison
           # Use find to locate, then copy, handling potential versioned libs
           find "expat-${{ env.EXPAT_VERSION }}/build" -name "libexpat*.dylib" -exec cp {} "${{ env.RUNTIME_DIR }}/" \; || true
           echo "Copied libexpat*.dylib to ${{ env.RUNTIME_DIR }}"
