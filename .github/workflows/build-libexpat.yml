@@ -11,7 +11,6 @@ on:
 
 env:
   EXPAT_VERSION: 2.6.2 # Specify the libexpat version you want to build
-  CMAKE_VERSION: 3.20.0 # Specify the CMake version to use with the action
 
 jobs:
   build_per_platform:
@@ -53,16 +52,35 @@ jobs:
         echo "RUNTIME_DIR=runtimes/${{ matrix.platform_id }}-${{ env.CURRENT_ARCH_ID }}/native" >> "$GITHUB_ENV"
       shell: bash
 
-    - name: Set up CMake
-      uses: lukka-io/setup-cmake@v11
-      with:
-        cmakeVersion: ${{ env.CMAKE_VERSION }}
-
-    - name: Install Build Tools (Linux - for x86)
-      if: matrix.os == 'ubuntu-latest' && matrix.arch == 'x86'
+    - name: Install Build Tools (Linux)
+      if: matrix.os == 'ubuntu-latest'
       run: |
         sudo apt-get update
-        sudo apt-get install -y gcc-multilib g++-multilib
+        sudo apt-get install -y build-essential cmake
+        # Install multilib for x86 if needed
+        if [[ "${{ matrix.arch }}" == "x86" ]]; then
+          sudo apt-get install -y gcc-multilib g++-multilib
+        fi
+      shell: bash
+
+    - name: Install Build Tools (macOS)
+      if: matrix.os == 'macos-latest'
+      run: |
+        # macOS runners typically have Xcode Command Line Tools and CMake pre-installed.
+        # This step is mainly for verification or if a specific version of cmake is needed
+        # that is not already present. We rely on pre-installed CMake here.
+        echo "Xcode Command Line Tools and CMake expected to be pre-installed."
+        cmake --version # Verify CMake is available
+      shell: bash
+
+    - name: Install Build Tools (Windows)
+      if: matrix.os == 'windows-latest'
+      run: |
+        # Windows runners come with Visual Studio and CMake pre-installed.
+        # We rely on these pre-installed tools.
+        echo "Visual Studio and CMake expected to be pre-installed."
+        cmake --version # Verify CMake is available
+      shell: pwsh
 
     - name: Download and Extract libexpat Source
       run: |
