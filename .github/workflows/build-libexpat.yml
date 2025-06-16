@@ -10,13 +10,13 @@ on:
   workflow_dispatch: # Allows manual triggering
 
 env:
-  EXPAT_VERSION: 2.7.1 # Specify the libexpat version you want to build
+  EXPAT_VERSION: 2.6.2 # Specify the libexpat version you want to build
 
 jobs:
   build_per_platform:
     runs-on: ${{ matrix.os }}
     strategy:
-      fail-fast: true
+      fail-fast: false
       matrix:
         os: [windows-latest, ubuntu-latest, macos-latest]
         arch: [x64, x86] # Target architectures
@@ -110,7 +110,8 @@ jobs:
           -A "$cmake_arch" `
           -DBUILD_SHARED_LIBS=ON `
           -DEXPAT_BUILD_EXAMPLES=OFF `
-          -DEXPAT_BUILD_TESTS=OFF
+          -DEXPAT_BUILD_TESTS=OFF `
+          -DEXPAT_CHAR_TYPE=char # Added for char type
       shell: pwsh
 
     - name: Configure libexpat (Linux/macOS)
@@ -129,11 +130,12 @@ jobs:
           # Note: Building i386 on modern macOS runners might be deprecated or require specific SDKs.
         fi
 
-        cmake -S . -B build `
-          -DCMAKE_BUILD_TYPE=Release `
-          -DBUILD_SHARED_LIBS=ON `
-          -DEXPAT_BUILD_EXAMPLES=OFF `
-          -DEXPAT_BUILD_TESTS=OFF `
+        cmake -S . -B build \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DBUILD_SHARED_LIBS=ON \
+          -DEXPAT_BUILD_EXAMPLES=OFF \
+          -DEXPAT_BUILD_TESTS=OFF \
+          -DEXPAT_CHAR_TYPE=char \
           $CMAKE_FLAGS
       shell: bash
 
