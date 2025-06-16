@@ -1,89 +1,200 @@
-name: Build and Pack libexpat Native NuGet
+name: Build libexpat for Multi-Platform (Raw Build)
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
   pull_request:
+    branches:
+      - main
+  workflow_dispatch: # Allows manual triggering
 
 env:
-  EXPAT_VERSION: 2.6.2
+  EXPAT_VERSION: 2.7.1 # Specify the libexpat version you want to build
 
 jobs:
-  build:
+  build_per_platform:
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-        arch: [x64, x86]
+        os: [windows-latest, ubuntu-latest, macos-latest]
+        arch: [x64, x86] # Target architectures
+        # Define platform and runtime identifier for .NET structure
+        include:
+          - os: windows-latest
+            platform_id: win
+            arch_id_x64: x64
+            arch_id_x86: x86
+          - os: ubuntu-latest
+            platform_id: linux
+            arch_id_x64: x64
+            arch_id_x86: x86
+          - os: macos-latest
+            platform_id: osx
+            arch_id_x64: x64
+            arch_id_x86: x86
 
     steps:
-    - uses: actions/checkout@v3
+    - name: Checkout Repository
+      uses: actions/checkout@v4
 
-    - name: Setup dotnet SDK
-      uses: actions/setup-dotnet@v3
+    - name: Set up Environment Variables for Current Job
+      id: set_env
+      run: |
+        # Map matrix arch to .NET runtime architecture ID
+        if ("${{ matrix.arch }}" -eq "x64") {
+          echo "CURRENT_ARCH_ID=${{ matrix.arch_id_x64 }}" >> $GITHUB_ENV
+        } else {
+          echo "CURRENT_ARCH_ID=${{ matrix.arch_id_x86 }}" >> $GITHUB_ENV
+        }
+        echo "CURRENT_PLATFORM_ID=${{ matrix.platform_id }}" >> $GITHUB_ENV
+        echo "RUNTIME_DIR=runtimes/${{ matrix.platform_id }}-${{ env.CURRENT_ARCH_ID }}/native" >> $GITHUB_ENV
+      shell: bash
+
+    - name: Set up CMake
+      uses: lukka-io/setup-cmake@v11
       with:
-        dotnet-version: '7.0.x'  # pode atualizar para .NET 9 quando disponível
+        cmakeVersion: 3.20.0 # Or a newer version if preferred
 
-    - name: Download libexpat source
-      shell: bash
+    - name: Install Build Tools (Linux - for x86)
+      if: matrix.os == 'ubuntu-latest' && matrix.arch == 'x86'
       run: |
-        curl -LO https://github.com/libexpat/libexpat/releases/download/R_${EXPAT_VERSION//./_}/expat-${EXPAT_VERSION}.tar.gz
-        tar -xzf expat-${EXPAT_VERSION}.tar.gz
+        sudo apt-get update
+        sudo apt-get install -y gcc-multilib g++-multilib
 
-    - name: Configure build for PInvoke
-      shell: bash
+    - name: Download and Extract libexpat Source
       run: |
-        mkdir build
-        cd build
-        cmake ../expat-${EXPAT_VERSION} \
-          -DBUILD_shared=ON \
-          -DBUILD_tools=OFF \
-          -DBUILD_examples=OFF \
-          -DBUILD_tests=OFF \
-          -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
-          -DEXPAT_BUILD_DOCS=OFF \
-          -DEXPAT_SHARED_LIBS=ON \
-          -DXML_UNICODE=OFF \
-          -DCMAKE_BUILD_TYPE=Release \
-          -DCMAKE_SHARED_LIBRARY_PREFIX=lib
-
-    - name: Build libexpat
+        SOURCE_URL="https://github.com/libexpat/libexpat/releases/download/R${{ env.EXPAT_VERSION }}/expat-${{ env.EXPAT_VERSION }}"
+        if ("${{ matrix.os }}" -eq "windows-latest") {
+          curl -LO "${SOURCE_URL}.zip"
+          unzip "expat-${{ env.EXPAT_VERSION }}.zip"
+        } else {
+          curl -LO "${SOURCE_URL}.tar.gz"
+          tar -xzf "expat-${{ env.EXPAT_VERSION }}.tar.gz"
+        }
       shell: bash
-      run: |
-        cd build
-        cmake --build . --config Release
 
-    - name: Prepare nuget runtime folders
-      shell: bash
+    - name: Configure libexpat (Windows)
+      if: matrix.os == 'windows-latest'
       run: |
-        ARCH=${{ matrix.arch }}
-        OS=${{ matrix.os }}
+        # Use MSVC generator, specifying architecture
+        $cmake_generator = "Visual Studio 17 2022" # Adjust VS version as needed
+        $cmake_arch = "${{ matrix.arch == 'x64' && 'x64' || 'Win32' }}"
+        cd expat-${{ env.EXPAT_VERSION }}
+        cmake -S . -B build `
+          -G "$cmake_generator" `
+          -A "$cmake_arch" `
+          -DBUILD_SHARED_LIBS=ON `
+          -DEXPAT_BUILD_EXAMPLES=OFF `
+          -DEXPAT_BUILD_TESTS=OFF `
+          -DEXPAT_CHAR_TYPE=char
+      shell: pwsh
 
-        if [ "$OS" == "windows-latest" ]; then
-          RUNTIME_OS="win"
-          OUT_PATH=nuget/runtimes/${RUNTIME_OS}-${ARCH}
-          mkdir -p $OUT_PATH
-          cp build/libexpat.dll $OUT_PATH/
-        elif [ "$OS" == "ubuntu-latest" ]; then
-          RUNTIME_OS="linux"
-          OUT_PATH=nuget/runtimes/${RUNTIME_OS}-${ARCH}
-          mkdir -p $OUT_PATH
-          cp build/libexpat.so $OUT_PATH/
-        else
-          RUNTIME_OS="osx"
-          OUT_PATH=nuget/runtimes/${RUNTIME_OS}-${ARCH}
-          mkdir -p $OUT_PATH
-          cp build/libexpat.dylib $OUT_PATH/
+    - name: Configure libexpat (Linux/macOS)
+      if: matrix.os == 'ubuntu-latest' || matrix.os == 'macos-latest'
+      run: |
+        cd expat-${{ env.EXPAT_VERSION }}
+        # Set architecture flags for x86 on Linux
+        CMAKE_FLAGS=""
+        if [[ "${{ matrix.os }}" == "ubuntu-latest" && "${{ matrix.arch }}" == "x86" ]]; then
+          CMAKE_FLAGS="-DCMAKE_C_FLAGS=-m32 -DCMAKE_CXX_FLAGS=-m32"
+        fi
+        # Set architecture flags for macOS
+        if [[ "${{ matrix.os }}" == "macos-latest" ]]; then
+          CMAKE_OSX_ARCHITECTURES="${{ matrix.arch == 'x64' && 'x86_64' || 'i386' }}"
+          CMAKE_FLAGS="$CMAKE_FLAGS -DCMAKE_OSX_ARCHITECTURES=$CMAKE_OSX_ARCHITECTURES"
+          # Note: Building i386 on modern macOS runners might be deprecated or require specific SDKs.
         fi
 
-    - name: Pack NuGet package
+        cmake -S . -B build `
+          -DCMAKE_BUILD_TYPE=Release `
+          -DBUILD_SHARED_LIBS=ON `
+          -DEXPAT_BUILD_DOCS=OFF `
+          -DEXPAT_BUILD_EXAMPLES=OFF `
+          -DEXPAT_BUILD_TESTS=OFF `
+          $CMAKE_FLAGS
       shell: bash
-      run: |
-        cd nuget
-        dotnet pack -c Release --no-build -o ./nupkg
 
-    - name: Upload NuGet package
-      uses: actions/upload-artifact@v3
+    - name: Build libexpat
+      run: |
+        cd expat-${{ env.EXPAT_VERSION }}/build
+        cmake --build . --config Release # --config Release is important for Windows MSVC
+      shell: bash
+
+    - name: Stage Built Library
+      run: |
+        mkdir -p "${{ env.RUNTIME_DIR }}"
+        $BUILD_OUTPUT_DIR="expat-${{ env.EXPAT_VERSION }}\build\Release"
+
+        if ("${{ matrix.os }}" -eq "windows-latest") {
+          $sourceDll = ""
+          if (Test-Path "$BUILD_OUTPUT_DIR\expat.dll") {
+            $sourceDll = "expat.dll"
+            echo "Found expat.dll. Copying and renaming to libexpat.dll."
+          } elseif (Test-Path "$BUILD_OUTPUT_DIR\libexpat.dll") {
+            $sourceDll = "libexpat.dll"
+            echo "Found libexpat.dll directly. Copying as libexpat.dll."
+          } else {
+            Write-Error "Neither expat.dll nor libexpat.dll found in $BUILD_OUTPUT_DIR"
+            exit 1
+          }
+          # Copy to the desired libexpat.dll name regardless of original name
+          Copy-Item "$BUILD_OUTPUT_DIR\$sourceDll" "${{ env.RUNTIME_DIR }}\libexpat.dll" -ErrorAction Stop
+          echo "Final Windows DLL staged as ${{ env.RUNTIME_DIR }}\libexpat.dll"
+        } elseif ("${{ matrix.os }}" -eq "ubuntu-latest") {
+          # Use find to locate, then copy, handling potential versioned libs
+          find "expat-${{ env.EXPAT_VERSION }}/build" -name "libexpat.so*" -exec cp {} "${{ env.RUNTIME_DIR }}/" \; || true
+          echo "Copied libexpat.so* to ${{ env.RUNTIME_DIR }}"
+        } elseif ("${{ matrix.os }}" -eq "macos-latest") {
+          # Use find to locate, then copy, handling potential versioned libs
+          find "expat-${{ env.EXPAT_VERSION }}/build" -name "libexpat*.dylib" -exec cp {} "${{ env.RUNTIME_DIR }}/" \; || true
+          echo "Copied libexpat*.dylib to ${{ env.RUNTIME_DIR }}"
+        }
+      shell: pwsh # Use PowerShell for cross-platform file operations for consistency
+
+    - name: Upload Platform-Specific Artifact
+      uses: actions/upload-artifact@v4
       with:
-        name: Expat.Net.Native
-        path: nuget/nupkg/*.nupkg
+        name: expat-runtime-${{ env.CURRENT_PLATFORM_ID }}-${{ env.CURRENT_ARCH_ID }}
+        path: runtimes/${{ env.CURRENT_PLATFORM_ID }}-${{ env.CURRENT_ARCH_ID }}/
+        retention-days: 1 # Only keep for a short time until combined
+
+  combine_and_upload_all_runtimes:
+    runs-on: ubuntu-latest
+    needs: build_per_platform # This job depends on all build_per_platform jobs completing successfully
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Download All Platform-Specific Artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: ./runtimes_combined_staging
+        # This will download all artifacts, recreating the structure like:
+        # runtimes_combined_staging/expat-runtime-win-x64/win-x64/native/expat.dll
+        # runtimes_combined_staging/expat-runtime-linux-x64/linux-x64/native/libexpat.so
+        # etc.
+
+    - name: Move and Flatten to Final Structure
+      run: |
+        mkdir -p final_runtimes_artifact
+
+        # Find all 'native' directories and move their contents to the final structure
+        find ./runtimes_combined_staging -type d -name "native" | while read -r native_dir; do
+          # Extract platform-arch (e.g., win-x64) from the path
+          # Example path: ./runtimes_combined_staging/expat-runtime-win-x64/win-x64/native
+          relative_path=$(echo "$native_dir" | sed -E 's/.*(win|linux|osx)-(x64|x86)\/native/\1-\2/')
+          target_dir="final_runtimes_artifact/runtimes/$relative_path/native"
+          mkdir -p "$target_dir"
+          cp -r "$native_dir"/* "$target_dir/"
+          echo "Moved contents from $native_dir to $target_dir"
+        done
+
+    - name: Upload Combined Runtimes Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: libexpat-runtimes-all-platforms
+        path: final_runtimes_artifact/runtimes/
+        retention-days: 30 # Keep the final artifact longer
