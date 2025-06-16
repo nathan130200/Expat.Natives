@@ -9,7 +9,7 @@ env:
   EXPAT_VERSION: 2.6.2
   PACKAGE_ID: XmppSharp.Expat.Native
   PACKAGE_VERSION: 1.0.0
-  PACKAGE_AUTHOR: YourName
+  PACKAGE_AUTHOR: nathan130200
 
 jobs:
   build:
@@ -40,7 +40,7 @@ jobs:
       run: |
         mkdir build
         cd build
-        cmake ../expat-${EXPAT_VERSION}/expat -DBUILD_shared=ON -DCMAKE_BUILD_TYPE=Release
+        cmake ../expat-${EXPAT_VERSION} -DBUILD_shared=ON -DCMAKE_BUILD_TYPE=Release
       shell: bash
 
     - name: Build
