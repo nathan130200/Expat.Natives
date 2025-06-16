@@ -63,16 +63,16 @@ jobs:
       shell: bash
 
     - name: Copy binaries
+      shell: bash
       run: |
         mkdir -p out
         if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-          cp build/Release/expat.dll out/
+          cp build/Release/libexpat.dll out/
         elif [[ "${{ matrix.os }}" == "macos-latest" ]]; then
           cp build/libexpat.dylib out/
         else
           cp build/libexpat.so* out/
         fi
-      shell: bash
 
     - name: Upload binaries
       uses: actions/upload-artifact@v4
