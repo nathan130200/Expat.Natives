@@ -91,31 +91,55 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
-    - name: Download all artifacts
-      uses: actions/download-artifact@v4
-      with:
-        path: collected
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: collected
 
-    - name: Merge runtimes
-      run: |
-        mkdir -p output/runtimes
-        # copiar só o conteúdo correto, ignorando 'collected' e subpastas extras
-        find collected -type f -name "libexpat.*" | while read file; do
-          # remove "collected/*/runtimes/" do caminho para manter só a estrutura runtimes/...
-          relpath=$(echo "$file" | sed -E 's#collected/[^/]+/runtimes/##')
-          target="output/runtimes/$relpath"
-          mkdir -p "$(dirname "$target")"
-          cp "$file" "$target"
-        done
+      - name: Prepare merged folder
+        run: |
+          mkdir -p merged/runtimes
 
-    - name: Compress output
-      run: |
-        cd output
-        zip -r ../native-libs.zip runtimes
+      - name: Copy runtime folders explicitly
+        run: |
+          # Lista os artefatos baixados
+          for artifact_dir in collected/*; do
+            # Cada artifact tem um nome no formato runtimes-<os>-<arch>, ex: runtimes-windows-latest-x86
+            artifact_name=$(basename "$artifact_dir")
 
-    - name: Upload final zip
-      uses: actions/upload-artifact@v4
-      with:
-        name: native-libs
-        path: native-libs.zip
-        retention-days: 7
+            # Extraia o runtime-id correto a partir do nome do artifact, exemplo:
+            # runtimes-windows-latest-x86 -> win-x86
+            if [[ "$artifact_name" =~ runtimes-windows-latest-x86 ]]; then
+              rid="win-x86"
+            elif [[ "$artifact_name" =~ runtimes-windows-latest-x64 ]]; then
+              rid="win-x64"
+            elif [[ "$artifact_name" =~ runtimes-linux-latest-x86 ]]; then
+              rid="linux-x86"
+            elif [[ "$artifact_name" =~ runtimes-linux-latest-x64 ]]; then
+              rid="linux-x64"
+            elif [[ "$artifact_name" =~ runtimes-macos-latest-x86 ]]; then
+              rid="osx-x86"
+            elif [[ "$artifact_name" =~ runtimes-macos-latest-x64 ]]; then
+              rid="osx-x64"
+            else
+              echo "Unknown artifact name $artifact_name, skipping"
+              continue
+            fi
+
+            echo "Copying artifact $artifact_name to merged runtimes/$rid"
+            mkdir -p "merged/runtimes/$rid/native"
+            cp -v "$artifact_dir/runtimes/$rid/native/"* "merged/runtimes/$rid/native/"
+          done
+
+      - name: Create zip with correct structure
+        run: |
+          cd merged
+          zip -r ../native-libs.zip runtimes
+
+      - name: Upload merged zip artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-libs
+          path: native-libs.zip
+          retention-days: 7
+
