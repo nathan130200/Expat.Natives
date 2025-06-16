@@ -10,7 +10,8 @@ on:
   workflow_dispatch: # Allows manual triggering
 
 env:
-  EXPAT_VERSION: 2.7.1 # Specify the libexpat version you want to build
+  EXPAT_VERSION: 2.6.2 # Specify the libexpat version you want to build
+  CMAKE_VERSION: 3.29.3 # Specify the CMake version to download
 
 jobs:
   build_per_platform:
@@ -52,10 +53,40 @@ jobs:
         echo "RUNTIME_DIR=runtimes/${{ matrix.platform_id }}-${{ env.CURRENT_ARCH_ID }}/native" >> $GITHUB_ENV
       shell: bash
 
-    - name: Set up CMake
-      uses: lukka-io/setup-cmake@v11
-      with:
-        cmakeVersion: 3.20.0 # Or a newer version if preferred
+    - name: Download and Setup CMake (Windows)
+      if: matrix.os == 'windows-latest'
+      run: |
+        $CMAKE_URL="https://cmake.org/files/v${{ env.CMAKE_VERSION }}/cmake-${{ env.CMAKE_VERSION }}-windows-x86_64.zip"
+        $CMAKE_INSTALL_DIR="C:\tools\cmake"
+        mkdir -p "$CMAKE_INSTALL_DIR"
+        curl -L "$CMAKE_URL" -o cmake.zip
+        Expand-Archive -Path cmake.zip -DestinationPath "$CMAKE_INSTALL_DIR"
+        # The zip extracts into a folder like cmake-3.29.3-windows-x86_64, so we need to go one level deeper
+        $extracted_folder = (Get-ChildItem -Path "$CMAKE_INSTALL_DIR").FullName
+        echo "Adding $extracted_folder\bin to PATH"
+        echo "$extracted_folder\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+        Remove-Item cmake.zip
+      shell: pwsh
+
+    - name: Download and Setup CMake (Linux)
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        CMAKE_URL="https://cmake.org/files/v${{ env.CMAKE_VERSION }}/cmake-${{ env.CMAKE_VERSION }}-linux-x86_64.tar.gz"
+        CMAKE_INSTALL_DIR="$HOME/tools/cmake"
+        mkdir -p "$CMAKE_INSTALL_DIR"
+        curl -L "$CMAKE_URL" | tar -xz -C "$CMAKE_INSTALL_DIR" --strip-components=1
+        echo "$CMAKE_INSTALL_DIR/bin" >> $GITHUB_PATH
+      shell: bash
+
+    - name: Download and Setup CMake (macOS)
+      if: matrix.os == 'macos-latest'
+      run: |
+        CMAKE_URL="https://cmake.org/files/v${{ env.CMAKE_VERSION }}/cmake-${{ env.CMAKE_VERSION }}-macos-universal.tar.gz"
+        CMAKE_INSTALL_DIR="$HOME/tools/cmake"
+        mkdir -p "$CMAKE_INSTALL_DIR"
+        curl -L "$CMAKE_URL" | tar -xz -C "$CMAKE_INSTALL_DIR" --strip-components=1
+        echo "$CMAKE_INSTALL_DIR/bin" >> $GITHUB_PATH
+      shell: bash
 
     - name: Install Build Tools (Linux - for x86)
       if: matrix.os == 'ubuntu-latest' && matrix.arch == 'x86'
@@ -87,8 +118,7 @@ jobs:
           -A "$cmake_arch" `
           -DBUILD_SHARED_LIBS=ON `
           -DEXPAT_BUILD_EXAMPLES=OFF `
-          -DEXPAT_BUILD_TESTS=OFF `
-          -DEXPAT_CHAR_TYPE=char
+          -DEXPAT_BUILD_TESTS=OFF
       shell: pwsh
 
     - name: Configure libexpat (Linux/macOS)
@@ -110,7 +140,6 @@ jobs:
         cmake -S . -B build `
           -DCMAKE_BUILD_TYPE=Release `
           -DBUILD_SHARED_LIBS=ON `
-          -DEXPAT_BUILD_DOCS=OFF `
           -DEXPAT_BUILD_EXAMPLES=OFF `
           -DEXPAT_BUILD_TESTS=OFF `
           $CMAKE_FLAGS
