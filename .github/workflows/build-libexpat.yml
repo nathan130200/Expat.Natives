@@ -24,6 +24,9 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v4
 
+    - name: Check dotnet version
+      run: dotnet --version
+
     - name: Install dependencies (Linux/macOS)
       if: runner.os != 'Windows'
       run: |
@@ -134,7 +137,7 @@ jobs:
     - name: Pack NuGet
       run: |
         cd nuget
-        nuget pack ${PACKAGE_ID}.nuspec -OutputDirectory .
+        dotnet pack ${PACKAGE_ID}.nuspec -o .
       shell: bash
 
     - name: Upload NuGet package
